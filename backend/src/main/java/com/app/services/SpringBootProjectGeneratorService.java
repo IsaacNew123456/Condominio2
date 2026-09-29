@@ -344,6 +344,8 @@ public class SpringBootProjectGeneratorService {
                 imports.add("import java.time.LocalDate;");
             } else if ("LocalDateTime".equals(attr.getType())) {
                 imports.add("import java.time.LocalDateTime;");
+            } else if ("BigDecimal".equals(attr.getType())) {
+                imports.add("import java.math.BigDecimal;");
             }
         }
 
@@ -617,8 +619,9 @@ public class SpringBootProjectGeneratorService {
             case "int", "integer", "number" -> "Integer";
             case "varchar", "text", "string", "char" -> "String";
             case "date", "localdate" -> "LocalDate";
-            case "datetime", "localdatetime", "timestamp" -> "LocalDateTime";
-            case "decimal", "float", "double", "numeric", "bigdecimal" -> "Double";
+            case "datetime", "localdatetime", "timestamp", "timestamptz" -> "LocalDateTime";
+            case "decimal", "float", "double", "numeric", "real" -> "Double";
+            case "bigdecimal" -> "BigDecimal";
             case "bool", "boolean" -> "Boolean";
             case "long", "bigint" -> "Long";
             default -> {

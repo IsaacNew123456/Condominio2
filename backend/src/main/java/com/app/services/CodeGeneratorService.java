@@ -747,21 +747,22 @@ public class CodeGeneratorService {
         }
         String key = raw.trim().toLowerCase(Locale.ROOT);
         return switch (key) {
-            case "long" -> "Long";
-            case "int", "integer" -> "Integer";
+            case "long", "bigint" -> "Long";
+            case "int", "integer", "number" -> "Integer";
             case "bool", "boolean" -> "Boolean";
             case "date", "localdate" -> "LocalDate";
-            case "datetime", "localdatetime" -> "LocalDateTime";
+            case "datetime", "localdatetime", "timestamp", "timestamptz" -> "LocalDateTime";
             case "bigdecimal" -> "BigDecimal";
-            case "double", "float" -> "Double";
-            case "string" -> "String";
+            case "double", "float", "decimal", "numeric", "real" -> "Double";
+            case "string", "varchar", "text", "char" -> "String";
             default -> Character.isLowerCase(raw.trim().charAt(0)) ? toPascal(raw) : raw.trim();
         };
     }
 
     private String sqlType(String raw) {
         return switch (javaType(raw)) {
-            case "Long", "Integer" -> "BIGINT";
+            case "Long" -> "BIGINT";
+            case "Integer" -> "INTEGER";
             case "Boolean" -> "BOOLEAN";
             case "LocalDate" -> "DATE";
             case "LocalDateTime" -> "TIMESTAMPTZ";

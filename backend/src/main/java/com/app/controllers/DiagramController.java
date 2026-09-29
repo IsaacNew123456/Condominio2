@@ -89,8 +89,11 @@ public class DiagramController {
                 }
             }
             return ResponseEntity.ok(diagram);
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Error al procesar archivo XMI: " + e.getMessage(), e);
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Error al procesar archivo XMI: " + e.getMessage(), e);
         }
     }
 

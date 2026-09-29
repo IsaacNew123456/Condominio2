@@ -16,27 +16,61 @@ function toSnake(str = '') {
 }
 
 function mapType(t = '') {
+  const clean = String(t || '').trim().toLowerCase();
   const m = {
-    string: 'String', String: 'String',
-    int: 'Integer', Integer: 'Integer', long: 'Long', Long: 'Long',
-    float: 'Float', Float: 'Float', double: 'Double', Double: 'Double',
-    boolean: 'Boolean', Boolean: 'Boolean',
-    date: 'java.time.LocalDate', Date: 'java.time.LocalDate',
-    datetime: 'Instant', Instant: 'Instant',
+    string: 'String',
+    varchar: 'String',
+    text: 'String',
+    char: 'String',
+    int: 'Integer',
+    integer: 'Integer',
+    number: 'Integer',
+    long: 'Long',
+    bigint: 'Long',
+    float: 'Float',
+    double: 'Double',
+    decimal: 'Double',
+    numeric: 'Double',
+    bigdecimal: 'BigDecimal',
+    boolean: 'Boolean',
+    bool: 'Boolean',
+    date: 'LocalDate',
+    localdate: 'LocalDate',
+    datetime: 'LocalDateTime',
+    localdatetime: 'LocalDateTime',
+    timestamp: 'LocalDateTime',
+    instant: 'Instant',
   };
-  return m[t] || 'String';
+  return m[clean] || (t ? toPascal(t) : 'String');
 }
 
 function sqlType(t = '') {
+  const clean = String(t || '').trim().toLowerCase();
   const m = {
-    string: 'VARCHAR(255)', String: 'VARCHAR(255)',
-    int: 'INTEGER', Integer: 'INTEGER', long: 'BIGINT', Long: 'BIGINT',
-    float: 'REAL', Float: 'REAL', double: 'DOUBLE PRECISION', Double: 'DOUBLE PRECISION',
-    boolean: 'BOOLEAN', Boolean: 'BOOLEAN',
-    date: 'DATE', Date: 'DATE',
-    datetime: 'TIMESTAMPTZ', Instant: 'TIMESTAMPTZ',
+    string: 'VARCHAR(255)',
+    varchar: 'VARCHAR(255)',
+    text: 'TEXT',
+    char: 'CHAR(1)',
+    int: 'INTEGER',
+    integer: 'INTEGER',
+    number: 'INTEGER',
+    long: 'BIGINT',
+    bigint: 'BIGINT',
+    float: 'REAL',
+    double: 'DOUBLE PRECISION',
+    decimal: 'NUMERIC(14,2)',
+    numeric: 'NUMERIC(14,2)',
+    bigdecimal: 'NUMERIC(14,2)',
+    boolean: 'BOOLEAN',
+    bool: 'BOOLEAN',
+    date: 'DATE',
+    localdate: 'DATE',
+    datetime: 'TIMESTAMPTZ',
+    localdatetime: 'TIMESTAMPTZ',
+    timestamp: 'TIMESTAMPTZ',
+    instant: 'TIMESTAMPTZ',
   };
-  return m[t] || 'VARCHAR(255)';
+  return m[clean] || 'VARCHAR(255)';
 }
 
 function genPom(name) {
@@ -205,7 +239,10 @@ function genEntity(cls, relations = [], classes = []) {
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Instant;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 

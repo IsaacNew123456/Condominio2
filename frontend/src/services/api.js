@@ -12,11 +12,17 @@ const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (res) => res,
   (err) => {
-    const message =
-      err.response?.data?.message ||
-      err.response?.data?.error ||
-      err.message ||
-      'Error de red o comunicación con el backend';
+    const errorData = err.response?.data;
+    let message = 'Error de red o comunicación con el backend';
+    if (typeof errorData?.error === 'object' && errorData.error?.message) {
+      message = errorData.error.message;
+    } else if (typeof errorData?.message === 'string') {
+      message = errorData.message;
+    } else if (typeof errorData?.error === 'string') {
+      message = errorData.error;
+    } else if (typeof err.message === 'string') {
+      message = err.message;
+    }
     return Promise.reject(new Error(message));
   }
 );
@@ -128,12 +134,16 @@ export async function exportDiagramXmi(diagramModel) {
   });
 
   const name = (diagramModel.name || 'diagrama').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const url = URL.createObjectURL(new Blob([res.data], { type: 'application/xml' }));
+  const blob = new Blob([res.data], { type: 'application/xml;charset=utf-8' });
+  const url = window.URL.createObjectURL(blob);
   const anchor = document.createElement('a');
+  anchor.style.display = 'none';
   anchor.href = url;
   anchor.download = `${name}.xmi`;
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(anchor);
+  window.URL.revokeObjectURL(url);
 }
 
 /**
@@ -145,12 +155,15 @@ export async function exportPostmanCollection(diagramModel) {
     responseType: 'blob',
   });
 
-  const url = URL.createObjectURL(new Blob([res.data], { type: 'application/json' }));
+  const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/json;charset=utf-8' }));
   const anchor = document.createElement('a');
+  anchor.style.display = 'none';
   anchor.href = url;
   anchor.download = 'postman-collection.json';
+  document.body.appendChild(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  document.body.removeChild(anchor);
+  window.URL.revokeObjectURL(url);
 }
 
 /**
@@ -158,10 +171,14 @@ export async function exportPostmanCollection(diagramModel) {
  * Sube un archivo .xmi / .xml y recibe el DiagramModel estructurado.
  */
 export async function importDiagramXmi(file) {
+  if (!file) {
+    throw new Error('No se seleccionó ningún archivo para importar');
+  }
   const formData = new FormData();
   formData.append('file', file);
+  // Permitir que el navegador y Axios configuren el boundary multipart de forma automática
   const res = await apiClient.post('/diagrams/import-xmi', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': undefined },
   });
   return res.data;
 }

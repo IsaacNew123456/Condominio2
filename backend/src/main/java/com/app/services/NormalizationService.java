@@ -634,8 +634,9 @@ public class NormalizationService {
             case "int", "integer", "number" -> "Integer";
             case "varchar", "text", "string", "char" -> "String";
             case "date", "localdate" -> "LocalDate";
-            case "datetime", "localdatetime", "timestamp" -> "LocalDateTime";
-            case "decimal", "float", "double", "numeric", "bigdecimal" -> "Double";
+            case "datetime", "localdatetime", "timestamp", "timestamptz" -> "LocalDateTime";
+            case "decimal", "float", "double", "numeric", "real" -> "Double";
+            case "bigdecimal" -> "BigDecimal";
             case "bool", "boolean" -> "Boolean";
             case "long", "bigint" -> "Long";
             default -> {

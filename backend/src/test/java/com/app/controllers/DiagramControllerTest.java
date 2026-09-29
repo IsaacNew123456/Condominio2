@@ -37,7 +37,9 @@ class DiagramControllerTest {
         xmiService = Mockito.mock(XmiService.class);
         normalizationService = new NormalizationService();
         DiagramController controller = new DiagramController(diagramService, xmiService, normalizationService);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new ApiExceptionHandler())
+                .build();
     }
 
     @Test
@@ -80,5 +82,47 @@ class DiagramControllerTest {
                 .andExpect(jsonPath("$.classes[2].name", containsString("Profesor_Materia")))
                 .andExpect(jsonPath("$.relations", hasSize(2)))
                 .andExpect(jsonPath("$.normalizationNotes", hasSize(org.hamcrest.Matchers.greaterThan(0))));
+    }
+
+    @Test
+    @DisplayName("POST /api/diagrams/import-xmi with valid MultipartFile returns 200 OK with DiagramModel")
+    void testImportXmiFileReturnsDiagramModel() throws Exception {
+        DiagramModel model = new DiagramModel();
+        model.setName("Diagrama Importado");
+        ClassModel c = new ClassModel();
+        c.setId("c1");
+        c.setName("Usuario");
+        model.getClasses().add(c);
+
+        Mockito.when(xmiService.importFromXmi(Mockito.any(java.io.InputStream.class))).thenReturn(model);
+
+        org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                "file",
+                "modelo.xmi",
+                "application/xml",
+                "<xmi:XMI></xmi:XMI>".getBytes(java.nio.charset.StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/diagrams/import-xmi")
+                        .file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name", is("modelo")))
+                .andExpect(jsonPath("$.classes", hasSize(1)))
+                .andExpect(jsonPath("$.classes[0].name", is("Usuario")));
+    }
+
+    @Test
+    @DisplayName("POST /api/diagrams/import-xmi with empty file returns 400 Bad Request")
+    void testImportXmiEmptyFileReturnsBadRequest() throws Exception {
+        org.springframework.mock.web.MockMultipartFile emptyFile = new org.springframework.mock.web.MockMultipartFile(
+                "file",
+                "empty.xmi",
+                "application/xml",
+                new byte[0]
+        );
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/diagrams/import-xmi")
+                        .file(emptyFile))
+                .andExpect(status().isBadRequest());
     }
 }

@@ -313,30 +313,39 @@
   const javaType = (t) => {
     const map = {
       long: "Long",
+      bigint: "Long",
       int: "Integer",
       integer: "Integer",
+      number: "Integer",
       string: "String",
+      varchar: "String",
+      text: "String",
+      char: "String",
       bool: "Boolean",
       boolean: "Boolean",
       date: "LocalDate",
       datetime: "LocalDateTime",
       localdate: "LocalDate",
       localdatetime: "LocalDateTime",
+      timestamp: "LocalDateTime",
       bigdecimal: "BigDecimal",
       double: "Double",
       float: "Double",
+      decimal: "Double",
+      numeric: "Double",
     };
-    return map[String(t).toLowerCase()] || t;
+    return map[String(t || "").trim().toLowerCase()] || t;
   };
 
   const sqlType = (t) => {
     const j = javaType(t);
-    if (j === "Long" || j === "Integer") return "BIGINT";
+    if (j === "Long") return "BIGINT";
+    if (j === "Integer") return "INTEGER";
     if (j === "Boolean") return "BOOLEAN";
     if (j === "LocalDate") return "DATE";
     if (j === "LocalDateTime") return "TIMESTAMPTZ";
     if (j === "BigDecimal" || j === "Double") return "NUMERIC(14,2)";
-    return "TEXT";
+    return "VARCHAR(255)";
   };
 
   const fkSide = (rel) => {

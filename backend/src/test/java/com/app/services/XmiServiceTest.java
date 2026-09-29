@@ -220,5 +220,127 @@ class XmiServiceTest {
         assertTrue(xmi.contains("aggregation=\"composite\""));
         assertTrue(xmi.contains("xmi:type=\"uml:Association\""));
     }
+
+    @Test
+    void exportAndImportWithMethodsAndInheritance() {
+        XmiService xmiService = new XmiService();
+        DiagramModel model = new DiagramModel();
+        model.setName("SistemaBancario");
+
+        ClassModel cuenta = new ClassModel();
+        cuenta.setId("cls_cuenta");
+        cuenta.setName("Cuenta");
+        cuenta.getAttrs().add(new AttrModel("numero", "String"));
+        cuenta.getAttrs().add(new AttrModel("saldo", "BigDecimal"));
+        cuenta.getMethods().add("depositar(monto: BigDecimal): Boolean");
+        cuenta.getMethods().add("consultarSaldo(): BigDecimal");
+
+        ClassModel cuentaAhorros = new ClassModel();
+        cuentaAhorros.setId("cls_ahorros");
+        cuentaAhorros.setName("CuentaAhorros");
+        cuentaAhorros.getAttrs().add(new AttrModel("tasaInteres", "Double"));
+        cuentaAhorros.getMethods().add("aplicarInteres()");
+
+        model.getClasses().add(cuenta);
+        model.getClasses().add(cuentaAhorros);
+
+        // CuentaAhorros hereda de Cuenta
+        RelationModel herencia = new RelationModel();
+        herencia.setFromId("cls_ahorros");
+        herencia.setToId("cls_cuenta");
+        herencia.setFromName("CuentaAhorros");
+        herencia.setToName("Cuenta");
+        herencia.setRelationType("inheritance");
+        model.getRelations().add(herencia);
+
+        String xmi = xmiService.exportToXmi(model);
+        assertNotNull(xmi);
+        assertTrue(xmi.contains("<ownedOperation"));
+        assertTrue(xmi.contains("name=\"depositar\""));
+        assertTrue(xmi.contains("name=\"consultarSaldo\""));
+        assertTrue(xmi.contains("name=\"aplicarInteres\""));
+        assertTrue(xmi.contains("<generalization"));
+
+        // Importar nuevamente y verificar ida y vuelta perfecta
+        DiagramModel imported = xmiService.importFromXmi(xmi);
+        assertNotNull(imported);
+        assertEquals(2, imported.getClasses().size());
+
+        ClassModel impCuenta = imported.getClasses().stream()
+                .filter(c -> c.getName().equals("Cuenta"))
+                .findFirst().orElse(null);
+        assertNotNull(impCuenta);
+        assertEquals(2, impCuenta.getAttrs().size());
+        assertEquals(2, impCuenta.getMethods().size());
+        assertTrue(impCuenta.getMethods().stream().anyMatch(m -> m.contains("depositar")));
+        assertTrue(impCuenta.getMethods().stream().anyMatch(m -> m.contains("consultarSaldo")));
+
+        ClassModel impAhorros = imported.getClasses().stream()
+                .filter(c -> c.getName().equals("CuentaAhorros"))
+                .findFirst().orElse(null);
+        assertNotNull(impAhorros);
+        assertEquals(1, impAhorros.getMethods().size());
+        assertTrue(impAhorros.getMethods().get(0).contains("aplicarInteres"));
+
+        assertEquals(1, imported.getRelations().size());
+        RelationModel impRel = imported.getRelations().get(0);
+        assertEquals("inheritance", impRel.getEffectiveRelationType());
+        assertEquals("CuentaAhorros", impRel.getFromName());
+        assertEquals("Cuenta", impRel.getToName());
+    }
+
+    @Test
+    void importFromStarUmlXmiFormat() {
+        XmiService xmiService = new XmiService();
+        String starUmlXml = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <xmi:XMI xmi:version="2.1" xmlns:uml="http://schema.omg.org/spec/UML/2.1" xmlns:xmi="http://schema.omg.org/spec/XMI/2.1">
+                  <uml:Model xmi:id="STAR_MODEL_1" name="StarUML_Model">
+                    <packagedElement xmi:type="uml:Class" xmi:id="STAR_C1" name="Usuario">
+                      <ownedAttribute xmi:type="uml:Property" xmi:id="STAR_A1" name="email" type="String"/>
+                      <ownedOperation xmi:type="uml:Operation" xmi:id="STAR_OP1" name="iniciarSesion">
+                        <ownedParameter xmi:type="uml:Parameter" xmi:id="P1" name="password">
+                          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#String" name="String"/>
+                        </ownedParameter>
+                        <ownedParameter xmi:type="uml:Parameter" xmi:id="P_RET" name="return" direction="return">
+                          <type xmi:type="uml:PrimitiveType" href="http://schema.omg.org/spec/UML/2.1/uml.xml#Boolean" name="Boolean"/>
+                        </ownedParameter>
+                      </ownedOperation>
+                    </packagedElement>
+                    <packagedElement xmi:type="uml:Class" xmi:id="STAR_C2" name="Administrador">
+                      <generalization xmi:type="uml:Generalization" xmi:id="STAR_GEN1" general="STAR_C1"/>
+                      <ownedOperation xmi:type="uml:Operation" xmi:id="STAR_OP2" name="bloquearUsuario"/>
+                    </packagedElement>
+                  </uml:Model>
+                </xmi:XMI>
+                """;
+
+        DiagramModel diagram = xmiService.importFromXmi(starUmlXml);
+        assertNotNull(diagram);
+        assertEquals("StarUML_Model", diagram.getName());
+        assertEquals(2, diagram.getClasses().size());
+
+        ClassModel admin = diagram.getClasses().stream()
+                .filter(c -> c.getName().equals("Administrador"))
+                .findFirst().orElse(null);
+        assertNotNull(admin);
+        assertEquals(1, admin.getMethods().size());
+        assertTrue(admin.getMethods().get(0).contains("bloquearUsuario"));
+
+        ClassModel user = diagram.getClasses().stream()
+                .filter(c -> c.getName().equals("Usuario"))
+                .findFirst().orElse(null);
+        assertNotNull(user);
+        assertEquals(1, user.getAttrs().size());
+        assertEquals("email", user.getAttrs().get(0).getName());
+        assertEquals(1, user.getMethods().size());
+        assertTrue(user.getMethods().get(0).contains("iniciarSesion"));
+
+        assertEquals(1, diagram.getRelations().size());
+        RelationModel rel = diagram.getRelations().get(0);
+        assertEquals("inheritance", rel.getEffectiveRelationType());
+        assertEquals("Administrador", rel.getFromName());
+        assertEquals("Usuario", rel.getToName());
+    }
 }
 

@@ -243,4 +243,54 @@ class CodeGeneratorServiceTest {
         assertTrue(sql.contains("fk_detalle_doc_trib_docente") && sql.contains("ON DELETE CASCADE"));
         assertTrue(sql.contains("fk_detalle_doc_trib_tribunal") && sql.contains("ON DELETE CASCADE"));
     }
+
+    @Test
+    void testDataTypesRecognitionAndMapping() throws Exception {
+        DiagramModel model = new DiagramModel();
+        model.setName("TypeTest");
+
+        ClassModel producto = new ClassModel();
+        producto.setName("Producto");
+
+        producto.getAttrs().add(new AttrModel("stock", "integer"));
+        producto.getAttrs().add(new AttrModel("precio", "double"));
+        producto.getAttrs().add(new AttrModel("fechaCreacion", "date"));
+        producto.getAttrs().add(new AttrModel("activo", "boolean"));
+        producto.getAttrs().add(new AttrModel("descripcion", "string"));
+        producto.getAttrs().add(new AttrModel("fechaModificacion", "datetime"));
+
+        model.getClasses().add(producto);
+
+        CodeGeneratorService generator = new CodeGeneratorService(new ObjectMapper());
+        byte[] zipBytes = generator.buildZip(model);
+        assertNotNull(zipBytes);
+
+        Map<String, String> files = new HashMap<>();
+        try (java.util.zip.ZipInputStream in = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zipBytes), java.nio.charset.StandardCharsets.UTF_8)) {
+            java.util.zip.ZipEntry entry;
+            while ((entry = in.getNextEntry()) != null) {
+                byte[] content = in.readAllBytes();
+                files.put(entry.getName().replace("spring-boot-backend/", ""), new String(content, java.nio.charset.StandardCharsets.UTF_8));
+            }
+        }
+
+        String entitySource = files.get("src/main/java/com/app/entities/Producto.java");
+        assertNotNull(entitySource);
+        assertTrue(entitySource.contains("private Integer stock;"), "Debe mapear integer -> Integer");
+        assertTrue(entitySource.contains("private Double precio;"), "Debe mapear double -> Double");
+        assertTrue(entitySource.contains("private LocalDate fechaCreacion;"), "Debe mapear date -> LocalDate");
+        assertTrue(entitySource.contains("private Boolean activo;"), "Debe mapear boolean -> Boolean");
+        assertTrue(entitySource.contains("private String descripcion;"), "Debe mapear string -> String");
+        assertTrue(entitySource.contains("private LocalDateTime fechaModificacion;"), "Debe mapear datetime -> LocalDateTime");
+        assertTrue(entitySource.contains("import java.time.LocalDate;"), "Debe importar LocalDate");
+        assertTrue(entitySource.contains("import java.time.LocalDateTime;"), "Debe importar LocalDateTime");
+
+        String sql = files.get("schema.sql");
+        assertNotNull(sql);
+        assertTrue(sql.contains("stock INTEGER NOT NULL"), "SQL debe contener stock INTEGER NOT NULL");
+        assertTrue(sql.contains("precio NUMERIC(14,2) NOT NULL"), "SQL debe contener precio NUMERIC(14,2) NOT NULL");
+        assertTrue(sql.contains("fecha_creacion DATE NOT NULL"), "SQL debe contener fecha_creacion DATE NOT NULL");
+        assertTrue(sql.contains("activo BOOLEAN NOT NULL"), "SQL debe contener activo BOOLEAN NOT NULL");
+        assertTrue(sql.contains("fecha_modificacion TIMESTAMPTZ NOT NULL"), "SQL debe contener TIMESTAMPTZ");
+    }
 }

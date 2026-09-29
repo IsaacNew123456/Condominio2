@@ -9,6 +9,9 @@ function UmlClassCard({ cls, onMouseDown }) {
     updateAttribute,
     addAttribute,
     removeAttribute,
+    addMethod,
+    updateMethod,
+    removeMethod,
     locks,
     requestLock,
     releaseLock,
@@ -20,11 +23,14 @@ function UmlClassCard({ cls, onMouseDown }) {
   const [classNameInput, setClassNameInput] = useState(cls.name);
   const [editingAttrIndex, setEditingAttrIndex] = useState(null);
   const [attrInputs, setAttrInputs] = useState(cls.attrs || []);
+  const [editingMethodIndex, setEditingMethodIndex] = useState(null);
+  const [methodInputs, setMethodInputs] = useState(cls.methods || []);
 
   useEffect(() => {
     setClassNameInput(cls.name);
     setAttrInputs(cls.attrs || []);
-  }, [cls.name, cls.attrs]);
+    setMethodInputs(cls.methods || []);
+  }, [cls.name, cls.attrs, cls.methods]);
 
   // Verificar estado de bloqueo del elemento de clase
   const classLock = locks[cls.id];
@@ -56,7 +62,8 @@ function UmlClassCard({ cls, onMouseDown }) {
   }
 
   // --- Handlers de Bloqueo y Edición de Atributos ---
-  function startEditingAttr(index) {
+  function startEditingAttrName(index) {
+    if (isLockedByOther) return;
     const attrElementId = `${cls.id}_attr_${index}`;
     const attrLock = locks[attrElementId];
     if (attrLock && attrLock.locked && attrLock.lockedByUserId !== wsClient.userId) {
@@ -66,12 +73,27 @@ function UmlClassCard({ cls, onMouseDown }) {
     requestLock(attrElementId, 'ATTR');
   }
 
-  function finishEditingAttr(index) {
+  function finishEditingAttrName(index) {
     const attrElementId = `${cls.id}_attr_${index}`;
     setEditingAttrIndex(null);
-    const updated = attrInputs[index];
-    if (updated) {
-      updateAttribute(cls.id, index, updated);
+    const current = attrInputs[index] || cls.attrs?.[index];
+    if (current) {
+      const trimmedName = (current.name || '').trim();
+      if (trimmedName && trimmedName !== cls.attrs?.[index]?.name) {
+        updateAttribute(cls.id, index, { ...current, name: trimmedName });
+      }
+    }
+    releaseLock(attrElementId, 'ATTR');
+  }
+
+  function finishEditingAttrType(index) {
+    const attrElementId = `${cls.id}_attr_${index}`;
+    const current = attrInputs[index] || cls.attrs?.[index];
+    if (current) {
+      const trimmedType = (current.type != null ? String(current.type) : 'String').trim() || 'String';
+      if (trimmedType !== cls.attrs?.[index]?.type) {
+        updateAttribute(cls.id, index, { ...current, type: trimmedType });
+      }
     }
     releaseLock(attrElementId, 'ATTR');
   }
@@ -102,6 +124,43 @@ function UmlClassCard({ cls, onMouseDown }) {
     const next = [...attrInputs];
     next[index] = { ...next[index], [field]: value };
     setAttrInputs(next);
+  }
+
+  // --- Handlers de Métodos / Operaciones ---
+  function startEditingMethod(index) {
+    if (isLockedByOther) return;
+    setEditingMethodIndex(index);
+  }
+
+  function finishEditingMethod(index) {
+    setEditingMethodIndex(null);
+    const updated = methodInputs[index]?.trim();
+    if (updated && updateMethod) {
+      updateMethod(cls.id, index, updated);
+    }
+  }
+
+  function handleAddMethod(e) {
+    e.stopPropagation();
+    if (isLockedByOther) return;
+    const newMethod = `operacion_${(cls.methods?.length || 0) + 1}()`;
+    if (addMethod) {
+      addMethod(cls.id, newMethod);
+    }
+  }
+
+  function handleRemoveMethod(e, index) {
+    e.stopPropagation();
+    if (isLockedByOther) return;
+    if (removeMethod) {
+      removeMethod(cls.id, index);
+    }
+  }
+
+  function handleMethodChange(index, value) {
+    const next = [...methodInputs];
+    next[index] = value;
+    setMethodInputs(next);
   }
 
   const cardClasses = [
@@ -189,63 +248,72 @@ function UmlClassCard({ cls, onMouseDown }) {
                 style={isAttrLockedByOther ? { opacity: 0.5, borderLeft: '2px solid #f59e0b', paddingLeft: '4px' } : {}}
               >
                 {editingAttrIndex === i ? (
-                  <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
-                    <input
-                      className="uml-card-input"
-                      style={{ width: '60%' }}
-                      value={attr.name}
-                      onChange={(e) => handleAttrChange(i, 'name', e.target.value)}
-                      onBlur={() => finishEditingAttr(i)}
-                      autoFocus
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => e.key === 'Enter' && finishEditingAttr(i)}
-                    />
-                    <input
-                      className="uml-card-input"
-                      style={{ width: '40%' }}
-                      value={attr.type}
-                      onChange={(e) => handleAttrChange(i, 'type', e.target.value)}
-                      onBlur={() => finishEditingAttr(i)}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => e.key === 'Enter' && finishEditingAttr(i)}
-                    />
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      cursor: isAttrLockedByOther ? 'not-allowed' : 'pointer'
+                  <input
+                    className="uml-card-attr-name-input"
+                    value={attr.name}
+                    onChange={(e) => handleAttrChange(i, 'name', e.target.value)}
+                    onBlur={() => finishEditingAttrName(i)}
+                    autoFocus
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        finishEditingAttrName(i);
+                      }
                     }}
-                    onDoubleClick={() => !isAttrLockedByOther && !isLockedByOther && startEditingAttr(i)}
-                    title={isAttrLockedByOther ? `Atributo bloqueado por ${attrLock.lockedByUsername}` : 'Doble click para editar'}
+                  />
+                ) : (
+                  <span
+                    className="uml-card-attr-name"
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      if (!isAttrLockedByOther && !isLockedByOther) {
+                        startEditingAttrName(i);
+                      }
+                    }}
+                    title={isAttrLockedByOther ? `Atributo bloqueado por ${attrLock?.lockedByUsername || 'otro usuario'}` : 'Doble click para editar nombre'}
                   >
-                    <div style={{ display: 'flex', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span className="uml-card-attr-name">+{attr.name}</span>
-                      <span className="uml-card-attr-type">: {attr.type}</span>
-                    </div>
-                    {!isAttrLockedByOther && !isLockedByOther && (
-                      <button
-                        type="button"
-                        className="uml-card-attr-remove"
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--color-text-3)',
-                          cursor: 'pointer',
-                          padding: '0 2px',
-                          fontSize: '11px',
-                          opacity: 0.6,
-                        }}
-                        onClick={(e) => handleRemoveAttr(e, i, attr.name)}
-                        title="Eliminar atributo"
-                      >
-                        ×
-                      </button>
-                    )}
-                  </div>
+                    +{attr.name}
+                  </span>
+                )}
+
+                <span className="uml-card-attr-colon">:</span>
+
+                <input
+                  type="text"
+                  className="uml-card-attr-type-input"
+                  value={attr.type ?? ''}
+                  onChange={(e) => handleAttrChange(i, 'type', e.target.value)}
+                  onFocus={() => {
+                    if (!isAttrLockedByOther && !isLockedByOther) {
+                      requestLock(attrElementId, 'ATTR');
+                    }
+                  }}
+                  onBlur={() => finishEditingAttrType(i)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      finishEditingAttrType(i);
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  disabled={isAttrLockedByOther || isLockedByOther}
+                  placeholder="Tipo"
+                  title={isAttrLockedByOther ? `Bloqueado por ${attrLock?.lockedByUsername || 'otro usuario'}` : 'Editar tipo libremente (ej: integer, double, date, string...)'}
+                />
+
+                {!isAttrLockedByOther && !isLockedByOther && (
+                  <button
+                    type="button"
+                    className="uml-card-attr-remove"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => handleRemoveAttr(e, i, attr.name)}
+                    title="Eliminar atributo"
+                    aria-label={`Eliminar atributo ${attr.name}`}
+                  >
+                    ×
+                  </button>
                 )}
               </div>
             );
@@ -272,6 +340,99 @@ function UmlClassCard({ cls, onMouseDown }) {
             onClick={handleAddAttr}
           >
             + Atributo
+          </button>
+        )}
+      </div>
+
+      {/* Compartimento de Métodos / Operaciones UML */}
+      <div className="uml-card-methods-section" style={{ borderTop: '1px solid var(--color-border)', padding: 'var(--sp-2) var(--sp-3)' }}>
+        {methodInputs.length === 0 ? (
+          <div className="uml-card-method" style={{ color: 'var(--color-text-3)', fontStyle: 'italic', fontSize: '11px' }}>
+            Sin métodos
+          </div>
+        ) : (
+          methodInputs.map((method, mIdx) => (
+            <div
+              key={mIdx}
+              className="uml-card-method"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '2px 0',
+                borderBottom: mIdx < methodInputs.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)'
+              }}
+            >
+              {editingMethodIndex === mIdx ? (
+                <input
+                  className="uml-card-input"
+                  value={method}
+                  onChange={(e) => handleMethodChange(mIdx, e.target.value)}
+                  onBlur={() => finishEditingMethod(mIdx)}
+                  autoFocus
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.key === 'Enter' && finishEditingMethod(mIdx)}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: isLockedByOther ? 'not-allowed' : 'pointer'
+                  }}
+                  onDoubleClick={() => !isLockedByOther && startEditingMethod(mIdx)}
+                  title={isLockedByOther ? 'Elemento bloqueado' : 'Doble click para editar método'}
+                >
+                  <span style={{ color: 'var(--color-success, #3ecf8e)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    +{method.startsWith('+') ? method.slice(1) : method}
+                  </span>
+                  {!isLockedByOther && (
+                    <button
+                      type="button"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--color-text-3)',
+                        cursor: 'pointer',
+                        padding: '0 2px',
+                        fontSize: '11px',
+                        opacity: 0.6
+                      }}
+                      onClick={(e) => handleRemoveMethod(e, mIdx)}
+                      title="Eliminar método"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+
+        {!isLockedByOther && (
+          <button
+            type="button"
+            className="uml-card-add-method-btn"
+            style={{
+              width: '100%',
+              marginTop: '4px',
+              padding: '2px 6px',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px dashed var(--color-border)',
+              borderRadius: '4px',
+              color: 'var(--color-text-2)',
+              fontSize: '11px',
+              cursor: 'pointer',
+              textAlign: 'center'
+            }}
+            onClick={handleAddMethod}
+          >
+            + Método
           </button>
         )}
       </div>

@@ -94,7 +94,7 @@ const useUmlStore = create((set, get) => ({
     }
   },
 
-  addClass: (name, attrsRaw = '', broadcast = true) => {
+  addClass: (name, attrsRaw = '', broadcast = true, methods = []) => {
     const attrs = parseAttrs(attrsRaw);
     const id = `cls_${Date.now()}_${classIdCounter++}`;
     const count = get().classes.length;
@@ -102,6 +102,7 @@ const useUmlStore = create((set, get) => ({
       id,
       name: name.trim(),
       attrs,
+      methods: Array.isArray(methods) ? methods : [],
       x: 40 + (count % 4) * 240,
       y: 60 + Math.floor(count / 4) * 200,
       version: 0,
@@ -188,6 +189,48 @@ const useUmlStore = create((set, get) => ({
     }));
     if (broadcast) {
       wsClient.sendMutation('ATTR_REMOVED', { classId, index, attrName });
+    }
+  },
+
+  addMethod: (classId, method, broadcast = true) => {
+    set((s) => ({
+      classes: s.classes.map((c) => {
+        if (c.id !== classId) return c;
+        const methods = Array.isArray(c.methods) ? [...c.methods, method] : [method];
+        return { ...c, methods, version: (c.version || 0) + 1 };
+      }),
+    }));
+    if (broadcast) {
+      wsClient.sendMutation('CLASS_UPDATED', { id: classId, patch: { methodAdded: method } });
+    }
+  },
+
+  updateMethod: (classId, index, method, broadcast = true) => {
+    set((s) => ({
+      classes: s.classes.map((c) => {
+        if (c.id !== classId) return c;
+        const nextMethods = [...(c.methods || [])];
+        if (index >= 0 && index < nextMethods.length) {
+          nextMethods[index] = method;
+        }
+        return { ...c, methods: nextMethods, version: (c.version || 0) + 1 };
+      }),
+    }));
+    if (broadcast) {
+      wsClient.sendMutation('CLASS_UPDATED', { id: classId, patch: { methodUpdated: method, index } });
+    }
+  },
+
+  removeMethod: (classId, index, broadcast = true) => {
+    set((s) => ({
+      classes: s.classes.map((c) => {
+        if (c.id !== classId) return c;
+        const filtered = (c.methods || []).filter((_, i) => i !== index);
+        return { ...c, methods: filtered, version: (c.version || 0) + 1 };
+      }),
+    }));
+    if (broadcast) {
+      wsClient.sendMutation('CLASS_UPDATED', { id: classId, patch: { methodRemovedIndex: index } });
     }
   },
 
@@ -447,22 +490,25 @@ const useUmlStore = create((set, get) => ({
   },
 
   loadDiagram: (diagramResponse, broadcast = false) => {
-
+    if (!diagramResponse) return;
     const { id, name, classes = [], relations = [] } = diagramResponse;
 
     const hydratedClasses = classes.map((cls, i) => ({
       id: cls.id || `cls_${Date.now()}_${i}`,
-      name: cls.name,
+      name: cls.name || `Clase_${i + 1}`,
       attrs: cls.attrs || [],
+      methods: cls.methods || [],
       x: cls.x ?? (40 + (i % 3) * 260),
       y: cls.y ?? (60 + Math.floor(i / 3) * 220),
       version: cls.version || 0,
+      isIntermediate: cls.isIntermediate || false,
     }));
 
     const hydratedRelations = relations.map((rel, i) => {
       const fromId = rel.fromId || rel.sourceId;
       const toId = rel.toId || rel.targetId;
-      const relationType = rel.relationType || 'association';
+      const relationType = rel.relationType || (rel.effectiveRelationType ? rel.effectiveRelationType : 'association');
+      const mult = rel.mult || (rel.sourceMultiplicity && rel.targetMultiplicity ? `${rel.sourceMultiplicity}..${rel.targetMultiplicity}` : (relationType === 'inheritance' ? '' : '1..*'));
       const interName = rel.intermediateClassName || rel.intermediateTableName || rel.intermediateTableInfo?.tableName || (mult === '*..*' ? `${rel.fromName || 'Origen'}_${rel.toName || 'Destino'}` : undefined);
       const interClassId = rel.intermediateClassId || (interName ? hydratedClasses.find((c) => c.name.toLowerCase() === interName.toLowerCase())?.id : undefined);
 
@@ -490,8 +536,8 @@ const useUmlStore = create((set, get) => ({
     });
 
     set({
-      diagramId: id,
-      diagramName: name,
+      diagramId: id || null,
+      diagramName: name || 'Mi Diagrama',
       classes: hydratedClasses,
       relations: hydratedRelations,
     });

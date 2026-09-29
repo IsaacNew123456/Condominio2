@@ -164,10 +164,19 @@ export default function Navbar() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size === 0) {
+      addToast('El archivo seleccionado está vacío', 'warning');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
     setImportingXmi(true);
     try {
       const imported = await importDiagramXmi(file);
-      loadDiagram(imported);
+      if (!imported || (!imported.classes?.length && !imported.relations?.length)) {
+        addToast('El archivo XMI no contiene clases o elementos reconocibles', 'warning');
+      }
+      loadDiagram(imported, true);
       const classCount = imported.classes?.length ?? 0;
       const relCount = imported.relations?.length ?? 0;
       addToast(`Diagrama "${imported.name || 'Importado'}" cargado con éxito (${classCount} clases, ${relCount} relaciones) ✓`, 'success');

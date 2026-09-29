@@ -519,8 +519,8 @@ html, body, #root {
 /* ── UML Class Card ───────────────────────────────────────── */
 .uml-card {
   position: absolute;
-  width: 180px;
-  min-width: 180px;
+  width: 205px;
+  min-width: 205px;
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
   border-radius: var(--r-lg);
@@ -574,21 +574,103 @@ html, body, #root {
 
 .uml-card-attr {
   display: flex;
-  align-items: baseline;
-  gap: var(--sp-2);
+  align-items: center;
+  gap: 3px;
   padding: 3px 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-family: var(--font-mono);
   font-size: 0.72rem;
+  min-height: 26px;
 }
 
 .uml-card-attr:last-child { border-bottom: none; }
 
-.uml-card-attr-name { color: var(--color-text); }
+.uml-card-attr-name {
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  max-width: 82px;
+  font-weight: 500;
+}
 
-.uml-card-attr-type {
+.uml-card-attr-name:hover {
+  color: #fff;
+  text-decoration: underline dotted;
+}
+
+.uml-card-attr-name-input {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--color-accent);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  border-radius: 4px;
+  padding: 1px 4px;
+  width: 72px;
+  outline: none;
+}
+
+.uml-card-attr-colon {
+  color: var(--color-text-3);
+  font-weight: 600;
+  user-select: none;
+  padding: 0 1px;
+}
+
+.uml-card-attr-type-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
   font-style: italic;
+  border-radius: 4px;
+  padding: 1px 5px;
+  flex: 1;
+  min-width: 50px;
+  max-width: 82px;
+  outline: none;
+  transition: all var(--transition);
+}
+
+.uml-card-attr-type-input:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(91, 141, 238, 0.4);
+}
+
+.uml-card-attr-type-input:focus {
+  background: rgba(0, 0, 0, 0.6);
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+  color: #fff;
+  font-style: normal;
+}
+
+.uml-card-attr-type-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: transparent;
+  background: transparent;
+}
+
+.uml-card-attr-remove {
+  background: transparent;
+  border: none;
+  color: var(--color-text-3);
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.5;
+  transition: opacity var(--transition), color var(--transition);
+  margin-left: auto;
+}
+
+.uml-card-attr-remove:hover {
+  opacity: 1;
+  color: var(--color-danger);
 }
 
 .uml-card-delete {

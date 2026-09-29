@@ -336,7 +336,8 @@ const CARD_W = 180;
 
 function getCardHeight(cls) {
   const attrCount = (cls?.attrs && cls.attrs.length) || 0;
-  return Math.max(85, 45 + attrCount * 22 + 24);
+  const methodCount = (cls?.methods && cls.methods.length) || 0;
+  return Math.max(90, 45 + attrCount * 22 + 24 + (methodCount > 0 ? (methodCount * 20 + 30) : 32));
 }
 
 function getCardIntersection(card, targetPoint, cardW, cardH) {
